@@ -1,0 +1,45 @@
+# Ignore everything
+*
+
+# Keep gitignore
+!.gitignore
+
+# Allow traversal into directories
+!Assets/
+!Packages/
+
+# -------------------------
+# Unity scripts
+# -------------------------
+!Assets/Scripts/
+!Assets/Scripts/**
+!Assets/Scripts.meta
+
+# -------------------------
+# OpenBCI SDK subset
+# -------------------------
+
+# Allow traversal into package directories
+!Packages/**/
+
+# Keep only the Streams folder
+!Packages/**/Scripts/
+!Packages/**/Scripts/Runtime/
+!Packages/**/Scripts/Runtime/Network/
+!Packages/**/Scripts/Runtime/Network/Streams/
+!Packages/**/Scripts/Runtime/Network/Streams/**
+
+# Keep Unity meta files
+!**/*.meta
+
+# Keep package manifest files
+!Packages/manifest.json
+!Packages/packages-lock.json
+
+# Ignore generated Unity folders
+Library/
+Temp/
+Obj/
+Logs/
+Build/
+UserSettings/
