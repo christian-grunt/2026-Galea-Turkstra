@@ -8,10 +8,10 @@ using OpenBCI.Markers;
 
 namespace onnx
 {
-    public class FocusDataManager : MonoBehaviour
+    public class DisplayEMG : MonoBehaviour
     {
         [Header("Galea References")]
-        public EMGStream galeaEMGStream;
+        public OpenBCI.Network.Streams.EMGStream galeaEMGStream;
         public ToggleMarker trialMarker;
 
         [Header("Hardware Channel Map")]
@@ -22,7 +22,7 @@ namespace onnx
         private bool isRecording = false;
         private List<float> trialDataBuffer = new List<float>();
         private List<float> baselineDataBuffer = new List<float>();
-        public float[] channelReadouts = new float[targetChannelIndices.Length];
+        public float[] channelReadouts = new float[6];
         public bool drop = false;
 
         [Header("Baseline Stats")]

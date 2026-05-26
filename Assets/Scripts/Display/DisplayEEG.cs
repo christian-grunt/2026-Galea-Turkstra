@@ -5,13 +5,15 @@ using System.IO;
 using System.Text;
 using OpenBCI.Network.Streams;
 using OpenBCI.Markers;
+using OpenBCI.EyeTracking;
 
 namespace onnx
 {
-    public class FocusDataManager : MonoBehaviour
+    public class DisplayEEG : MonoBehaviour
     {
         [Header("Galea References")]
-        public BandPowerStream galeaBandPowerStream;
+        public OpenBCI.Network.Streams.BandPowerStream galeaBandPowerStream;
+        public EyeGazeManager eyeTracker;
         public ToggleMarker trialMarker;
         public DisplayEMG emgStream;
 
@@ -24,11 +26,13 @@ namespace onnx
         private List<float> trialDataBuffer = new List<float>();
         private List<float> baselineDataBuffer = new List<float>();
         public float currentRatio = 0f;
+        public float currentAlpha = 0f;
 
         [Header("Baseline Stats")]
         public float baselineMean = 0f;
         public float baselineStdDev = 1f;
         public bool hasBaseline = false;
+        public float blinkThreshold = 0.1f;
 
         private string csvFilePath;
 
@@ -36,17 +40,6 @@ namespace onnx
         {
             
             Debug.Log("<color=white><b>[FocusManager]</b> Initialized. Waiting for data on Port 12347.</color>");
-        }
-
-        public void StopTrialRecording(int trialIndex)
-        {
-            isRecording = false;
-            if (trialMarker != null) trialMarker.enabled = false;
-
-            float avg = GetTrialAverageFocus();
-            Debug.Log($"<color=orange><b>[TRIAL END]</b></color> Trial {trialIndex} | Samples: {trialDataBuffer.Count} | Avg Ratio: {avg:F4}");
-
-            SaveTrialToCSV(trialIndex);
         }
 
         void Update()
@@ -68,13 +61,18 @@ namespace onnx
             }
 
             // 3. Data Collection
-            if (!emgStream.clip) currentRatio = CalculateInstantaneousRatio();
+            if (!emgStream.drop || eyeTracker.Openness.x < blinkThreshold || eyeTracker.Openness.y < blinkThreshold)
+            {
+                currentAlpha = CalculateInstantaneousAlpha();
+            }
+                
+            
             //trialDataBuffer.Add(currentRatio);
         }
 
-        private float CalculateInstantaneousRatio()
+        private float CalculateInstantaneousAlpha()
         {
-            float sumTheta = 0f, sumAlpha = 0f, sumBeta = 0f;
+            float sumAlpha = 0f;
             int validCount = 0;
 
             // Raw Value Trace (Logs detailed channel data every 2 seconds during trial)
@@ -88,16 +86,9 @@ namespace onnx
                 if (i < galeaBandPowerStream.Channels.Length)
                 {
                     var ch = galeaBandPowerStream.Channels[i];
-                    sumTheta += ch.Theta;
                     sumAlpha += ch.Alpha;
-                    sumBeta += ch.Beta;
                     validCount++;
 
-                    if (shouldTrace)
-                    {
-                        // Identify channel name for the log (F1, F2, etc based on your index list)
-                        trace.AppendLine($"  Idx {i}: Th={ch.Theta:F2}, Al={ch.Alpha:F2}, Be={ch.Beta:F2}");
-                    }
                 }
             }
 
@@ -105,12 +96,9 @@ namespace onnx
 
             if (validCount == 0) return 0f;
 
-            float avgTheta = sumTheta / validCount;
             float avgAlpha = sumAlpha / validCount;
-            float avgBeta = sumBeta / validCount;
 
-            float denom = avgAlpha + avgTheta;
-            return (denom > 0.0001f) ? (avgBeta / denom) : 0f;
+            return avgAlpha;
         }
 
         private void CheckConnectionStatus()
