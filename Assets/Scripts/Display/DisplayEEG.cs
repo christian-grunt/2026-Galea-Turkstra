@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -18,11 +19,12 @@ namespace onnx
         public DisplayEMG emgStream;
 
         [Header("Hardware Channel Map")]
-        // F1, F2, C3, C4, P3, P4, CZ, PZ -> { 8, 9, 10, 11, 12, 13, 16, 17 }
-        public int[] targetChannelIndices = new int[] { 8, 9, 10, 11, 12, 13, 16, 17 };
+        // O1, O2 -> { 15, 16 }
+        public int[] targetChannelIndices = new int[] { 15, 16 };
 
         [Header("State")]
-        private bool isRecording = false;
+        public bool isRecording = false;
+        public bool recordingBaseline = false;
         private List<float> trialDataBuffer = new List<float>();
         private List<float> baselineDataBuffer = new List<float>();
         public float currentRatio = 0f;
@@ -33,6 +35,7 @@ namespace onnx
         public float baselineStdDev = 1f;
         public bool hasBaseline = false;
         public float blinkThreshold = 0.1f;
+        public bool isEyeTracking = true;
 
         private string csvFilePath;
 
@@ -61,12 +64,13 @@ namespace onnx
             }
 
             // 3. Data Collection
-            if (!emgStream.drop || eyeTracker.Openness.x < blinkThreshold || eyeTracker.Openness.y < blinkThreshold)
+          
+            if (!emgStream.drop && !(isEyeTracking && (eyeTracker.Openness.x > blinkThreshold || eyeTracker.Openness.y > blinkThreshold)))
             {
                 currentAlpha = CalculateInstantaneousAlpha();
             }
-                
-            
+
+
             //trialDataBuffer.Add(currentRatio);
         }
 
@@ -91,13 +95,13 @@ namespace onnx
 
                 }
             }
-
+            
             //if (shouldTrace) Debug.Log(trace.ToString());
 
             if (validCount == 0) return 0f;
 
             float avgAlpha = sumAlpha / validCount;
-
+            
             return avgAlpha;
         }
 
@@ -111,6 +115,49 @@ namespace onnx
                 Debug.Log($"<color=green>[Status]</color> Galea Online. Receiving {galeaBandPowerStream.Channels.Length} channels.");
         }
 
-        
+        public IEnumerator RecordBaseline(float duration = 10f, float frequency = 30f)
+        {
+            baselineDataBuffer.Clear();
+            float startTime = Time.time;
+
+            while (Time.time - startTime < duration)
+            {
+                if (!recordingBaseline) break;
+
+                float currentAlpha = CalculateInstantaneousAlpha();
+
+                baselineDataBuffer.Add(currentAlpha);
+
+                yield return new WaitForSeconds(1f / frequency);
+            }
+
+            ComputeBaseline();
+
+            BaseLineRecorded();
+            
+        }
+
+        private void ComputeBaseline()
+        {
+            if (baselineDataBuffer.Count < 5) return;
+            baselineMean = baselineDataBuffer.Average();
+            float variance = 0f;
+
+            foreach (float sample in baselineDataBuffer)
+            {
+                variance += Mathf.Pow(sample - baselineMean, 2);
+            }
+            variance /= baselineDataBuffer.Count();
+            baselineStdDev = Mathf.Sqrt(variance);
+            
+
+        }
+
+        private void BaseLineRecorded()
+        {
+            recordingBaseline = false;
+            // isRecording = true;
+
+        }
     }
 }

@@ -7,6 +7,7 @@ public class SoundManager : MonoBehaviour
 {
     AudioSource audio;
     DisplayEEG eeg;
+    private float maxPitch = 2;
     public float targetPitch = 1;
     public float scale = 0.2f;
     public float delta = 0.001f;

@@ -19,11 +19,12 @@ namespace onnx
         public int[] targetChannelIndices = new int[] {1,2,3,4,7,8 };
 
         [Header("State")]
-        private bool isRecording = false;
         private List<float> trialDataBuffer = new List<float>();
         private List<float> baselineDataBuffer = new List<float>();
         public float[] channelReadouts = new float[6];
         public bool drop = false;
+        public bool recordingBaseline = false;
+        public bool isRecording = true;
 
         [Header("Baseline Stats")]
         public float baselineMean = 0f;
@@ -57,19 +58,19 @@ namespace onnx
             }
 
             // 3. Data Collection
-            bool shouldDrop = false;
+            int shouldDrop = 0;
             for (int j = 0; j < targetChannelIndices.Length; j++)
             {
                 int i = targetChannelIndices[j];
                 if (i < galeaEMGStream.Channels.Length)
                 {
                     channelReadouts[j] = galeaEMGStream.Channels[i];
-                    if (channelReadouts[j] == 1) {
-                        shouldDrop = true;
+                    if (channelReadouts[j] > 0.9999) {
+                        shouldDrop ++;
                     }
                 }
             }
-            drop = shouldDrop;
+            drop = shouldDrop > 1;
 
             
         }
